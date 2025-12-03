@@ -1,5 +1,5 @@
 
-simulated = true;
+simulated = false;
 
 if simulated
     hw = HardwareSim(6, 3);

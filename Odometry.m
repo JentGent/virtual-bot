@@ -1,9 +1,11 @@
 classdef Odometry < handle
     properties (Constant)
-        MAX_ANGLE_CORRECTION = 10
+        MAX_ANGLE_CORRECTION = 2
+        MAX_POS_CORRECTION = 5
     end
     properties (SetAccess = immutable)
         DEG_TO_CM
+        CM_TO_DEG
         DARC_TO_DEG
         RAT_TO_CM
     end
@@ -19,8 +21,9 @@ classdef Odometry < handle
         function obj = Odometry(hw, maze)
             obj.hw = hw;
             obj.maze = maze;
-            obj.DEG_TO_CM = 2*pi * hw.WHEEL_RADIUS / 360;
-            obj.DARC_TO_DEG = 180 / pi / hw.WHEEL_DIST;
+            obj.DEG_TO_CM = pi * hw.WHEEL_RADIUS / 180;
+            obj.CM_TO_DEG = 180 / (pi * hw.WHEEL_RADIUS);
+            obj.DARC_TO_DEG = 180 / (pi * hw.WHEEL_DIST);
             obj.RAT_TO_CM = hw.WHEEL_DIST / 2;
         end
         
@@ -41,10 +44,6 @@ classdef Odometry < handle
             R = (dArcL + dArcR) / (dArcL - dArcR) * obj.RAT_TO_CM;
             c = cosd(theta); s = sind(theta);
             change = [R*(1-c), R*s, theta, c, s];
-        end
-
-        function change = accumulateChange(obj, change1, change2)
-            
         end
 
         function setPose(obj, x, y, angle)
@@ -95,19 +94,23 @@ classdef Odometry < handle
             % assume the bot is ~straight
             pose = obj.pose;
             EPS = 1e-12;
+            newPose = pose;
             switch dir
                 case 0 % going east (+x)
                     wallX = round(pose(1) / maze.CELL_SIZE) * maze.CELL_SIZE;
-                    obj.pose(1) = max(wallX + EPS, min(wallX + pose(1) - pPose(1), pose(1)));
+                    newPose(1) = max(wallX + EPS, min(wallX + pose(1) - pPose(1), pose(1)));
                 case 1 % going north (+y)
                     wallY = round(pose(2) / maze.CELL_SIZE) * maze.CELL_SIZE;
-                    obj.pose(2) = max(wallY + EPS, min(wallY + pose(2) - pPose(2), pose(2)));
-                case 3 % going west (-x)
+                    newPose(2) = max(wallY + EPS, min(wallY + pose(2) - pPose(2), pose(2)));
+                case 2 % going west (-x)
                     wallX = round(pose(1) / maze.CELL_SIZE) * maze.CELL_SIZE;
-                    obj.pose(1) = min(wallX - EPS, max(wallX + pose(1) - pPose(1), pose(1)));
-                case 4 % going south (-y)
+                    newPose(1) = min(wallX - EPS, max(wallX + pose(1) - pPose(1), pose(1)));
+                case 3 % going south (-y)
                     wallY = round(pose(2) / maze.CELL_SIZE) * maze.CELL_SIZE;
-                    obj.pose(2) = min(wallY - EPS, max(wallY + pose(2) - pPose(2), pose(2)));
+                    newPose(2) = min(wallY - EPS, max(wallY + pose(2) - pPose(2), pose(2)));
+            end
+            if abs(newPose(1) - pose(1)) < obj.MAX_POS_CORRECTION && abs(newPose(2) - pose(2)) < obj.MAX_POS_CORRECTION
+                obj.pose = newPose;
             end
         end
         
@@ -123,7 +126,7 @@ classdef Odometry < handle
                     -change(2) - right(2) * (hw.xUS + pRightDist) + forward(2) * hw.yUS];
             dWallX = wall(1) - pWall(1); dWallY = wall(2) - pWall(2);
             sqDist = dWallX * dWallX + dWallY * dWallY;
-            if sqDist > 4 * 4 && sqDist < 20 * 20
+            if sqDist > 2 * 2 && sqDist < 10 * 10
                 wallAngle = asind(dWallX / sqrt(sqDist));
                 if dWallY < 0
                     wallAngle = -wallAngle;
@@ -131,7 +134,7 @@ classdef Odometry < handle
                 pPose = obj.pose(3);
                 dir = round(pPose / 90);
                 newAngle = dir * 90 - wallAngle;
-                obj.pose(3) = max(pPose - obj.MAX_ANGLE_CORRECTION, min(pPose + obj.MAX_ANGLE_CORRECTION, newAngle));
+                obj.pose(3) = max(obj.pose(3) - obj.MAX_ANGLE_CORRECTION, min(obj.pose(3) + obj.MAX_ANGLE_CORRECTION, newAngle));
                 obj.forward = [cosd(newAngle), -sind(newAngle)];
                 obj.right = [obj.forward(2), -obj.forward(1)];
                 obj.correct(hw.xUS + rightDist, hw.yUS, obj.right, logical(mod(dir, 2)));

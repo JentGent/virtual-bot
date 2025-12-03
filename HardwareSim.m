@@ -11,10 +11,10 @@ classdef HardwareSim < handle
             'ULTRASONIC', 3, ...
             'GYRO', 4 ...
         )
-        WHEEL_RADIUS = 2.7
-        WHEEL_DIST = 8.4
-        xUS = 10.5
-        yUS = -4.5
+        WHEEL_RADIUS = 2.75
+        WHEEL_DIST = 7.9
+        xUS = 5.8
+        yUS = -4.2
         yTouch = 9.5
         US_FOV = 10
     end
@@ -33,7 +33,6 @@ classdef HardwareSim < handle
         degR = 0
         realDegL = 0
         realDegR = 0
-        brick
     end
 
     methods
@@ -78,6 +77,20 @@ classdef HardwareSim < handle
             obj.leftPower = left;
             obj.rightPower = right;
         end
+        function change = moveAcc(obj, speed, leftCM, varargin)
+            if isempty(varargin)
+                rightCM = leftCM;
+            else
+                rightCM = varargin{1};
+            end
+            odo = obj.realOdo;
+            dDegL = leftCM * odo.CM_TO_DEG;
+            dDegR = rightCM * odo.CM_TO_DEG;
+            obj.realDegL = obj.realDegL + dDegL;
+            obj.realDegR = obj.realDegR + dDegR;
+            change = odo.calcChange(dDegL, dDegR);
+            odo.applyChange(change);
+        end
         function moveClaw(obj, power)
         end
         function stop(obj)
@@ -92,12 +105,19 @@ classdef HardwareSim < handle
             pDegR = obj.realDegR;
             obj.realDegL = obj.realDegL + obj.leftPower * (1 + randn() * 0.05) * dt / 100 * obj.WHEEL_RADIUS * 360;
             obj.realDegR = obj.realDegR + obj.rightPower * (1 + randn() * 0.05) * dt / 100 * obj.WHEEL_RADIUS * 360;
+            pFakeDegL = obj.degL; pFakeDegR = obj.degR;
             obj.degL = obj.degL + obj.leftPower * dt / 100 * obj.WHEEL_RADIUS * 360;
             obj.degR = obj.degR + obj.rightPower * dt / 100 * obj.WHEEL_RADIUS * 360;
+            angles = [round(obj.degL * 0.75 + pFakeDegL * 0.25), round(obj.degR * 0.75 + pFakeDegR * 0.25)];
             
             odo = obj.realOdo;
             change = odo.calcChange(obj.realDegL - pDegL, obj.realDegR - pDegR);
             odo.applyChange(change);
+
+            while obj.colliding()
+                d = 0.1;
+                odo.setPose(odo.pose(1) - odo.right(1) * d, odo.pose(2) - odo.right(2) * d, odo.pose(3) - d);
+            end
 
             if obj.touchPressed()
                 d = 0.1;
@@ -111,7 +131,6 @@ classdef HardwareSim < handle
 
             obj.viz.update();
 
-            angles = [round(obj.degL), round(obj.degR)];
             pause(0.2);
         end
         function steer(obj, speed, radius)
@@ -131,46 +150,19 @@ classdef HardwareSim < handle
             obj.degL = 0;
             obj.degR = 0;
         end
+        function colliding = colliding(obj)
+            odo = obj.realOdo;
+            maze = obj.REAL_MAZE;
+            US = [odo.pose(1) + odo.right(1)*obj.xUS + odo.forward(1)*obj.yUS, ...
+                  odo.pose(2) + odo.right(2)*obj.xUS + odo.forward(2)*obj.yUS];
+            colliding = maze.intersecting(US(1), US(2), odo.pose(1), odo.pose(2));
+        end
         function pressed = touchPressed(obj)
             odo = obj.realOdo;
             maze = obj.REAL_MAZE;
             touch = [odo.pose(1) + odo.forward(1)*obj.yTouch, ...
                      odo.pose(2) + odo.forward(2)*obj.yTouch];
-
-            pressed = false;
-            for i = 1:maze.MAZE_WIDTH
-                for j = 1:maze.MAZE_HEIGHT
-                    c = maze.cells(j, i);
-                    if c.W == Wall.Blocked
-                        if Maze.intersects(touch(1), touch(2), odo.pose(1), odo.pose(2), ...
-                                (i-1)*maze.CELL_SIZE, (maze.MAZE_HEIGHT+1-j)*maze.CELL_SIZE, ...
-                                (i-1)*maze.CELL_SIZE, (maze.MAZE_HEIGHT-j)*maze.CELL_SIZE)
-                            pressed = true;
-                            return;
-                        end
-                    end
-                    if c.S == Wall.Blocked
-                        if Maze.intersects(touch(1), touch(2), odo.pose(1), odo.pose(2), ...
-                                (i-1)*maze.CELL_SIZE, (maze.MAZE_HEIGHT-j)*maze.CELL_SIZE, ...
-                                i*maze.CELL_SIZE, (maze.MAZE_HEIGHT-j)*maze.CELL_SIZE)
-                            pressed = true;
-                            return;
-                        end
-                    end
-                end
-            end
-            if Maze.intersects(touch(1), touch(2), odo.pose(1), odo.pose(2), ...
-                    maze.CELL_SIZE * maze.MAZE_WIDTH, 0, ...
-                    maze.CELL_SIZE * maze.MAZE_WIDTH, maze.CELL_SIZE * maze.MAZE_HEIGHT)
-                pressed = true;
-                return;
-            end
-            if Maze.intersects(touch(1), touch(2), odo.pose(1), odo.pose(2), ...
-                    0, maze.CELL_SIZE * maze.MAZE_HEIGHT, ...
-                    maze.CELL_SIZE * maze.MAZE_WIDTH, maze.CELL_SIZE * maze.MAZE_HEIGHT)
-                pressed = true;
-                return;
-            end
+            pressed = maze.intersecting(touch(1), touch(2), odo.pose(1), odo.pose(2));
         end
         function color = getColor(obj)
             color = [0, 0, 0];

@@ -55,6 +55,42 @@ classdef Maze < handle
             obj.initCells();
         end
 
+        function tf = intersecting(obj, x1, y1, x2, y2)
+            tf = false;
+            for i = 1:obj.MAZE_WIDTH
+                for j = 1:obj.MAZE_HEIGHT
+                    c = obj.cells(j, i);
+                    if c.W == Wall.Blocked
+                        if Maze.intersects(x1, y1, x2, y2, ...
+                                (i-1)*obj.CELL_SIZE, (obj.MAZE_HEIGHT+1-j)*obj.CELL_SIZE, ...
+                                (i-1)*obj.CELL_SIZE, (obj.MAZE_HEIGHT-j)*obj.CELL_SIZE)
+                            tf = true;
+                            return;
+                        end
+                    end
+                    if c.S == Wall.Blocked
+                        if Maze.intersects(x1, y1, x2, y2, ...
+                                (i-1)*obj.CELL_SIZE, (obj.MAZE_HEIGHT-j)*obj.CELL_SIZE, ...
+                                i*obj.CELL_SIZE, (obj.MAZE_HEIGHT-j)*obj.CELL_SIZE)
+                            tf = true;
+                            return;
+                        end
+                    end
+                end
+            end
+            if Maze.intersects(x1, y1, x2, y2, ...
+                    obj.CELL_SIZE * obj.MAZE_WIDTH, 0, ...
+                    obj.CELL_SIZE * obj.MAZE_WIDTH, obj.CELL_SIZE * obj.MAZE_HEIGHT)
+                tf = true;
+                return;
+            end
+            if Maze.intersects(x1, y1, x2, y2, ...
+                    0, obj.CELL_SIZE * obj.MAZE_HEIGHT, ...
+                    obj.CELL_SIZE * obj.MAZE_WIDTH, obj.CELL_SIZE * obj.MAZE_HEIGHT)
+                tf = true;
+                return;
+            end
+        end
         function dist = rayDistMaze(obj, x, y, vx, vy)
             dist = 255;
             for i = 1:obj.MAZE_WIDTH

@@ -18,13 +18,21 @@ classdef Hardware < handle
         yTouch = 9.5
     end
     properties
+        CM_TO_ANGLE
+    end
+    properties
         brick
     end
 
     methods
         function obj = Hardware(brick)
-            brick.SetColorMode(obj.SENSOR.COLOR, 4); % rgb
+            obj.setBrick(brick);
+            obj.CM_TO_ANGLE = 180 / (obj.WHEEL_RADIUS * pi);
+        end
+
+        function setBrick(obj, brick)
             obj.brick = brick;
+            brick.SetColorMode(obj.SENSOR.COLOR, 4); % rgb
             obj.beep();
         end
 
@@ -42,6 +50,30 @@ classdef Hardware < handle
         function stop(obj)
             obj.brick.StopAllMotors();
             obj.brick.WaitForMotor(obj.MOTOR.LEFT);
+        end
+        function change = moveAcc(obj, speed, leftCM, varargin)
+            if isempty(varargin)
+                rightCM = leftCM;
+            else
+                rightCM = varargin{1};
+            end
+            if abs(rightCM - leftCM) < 1
+                obj.brick.MoveMotorAngleRel([obj.MOTOR.LEFT, obj.MOTOR.RIGHT], speed, leftCM * obj.CM_TO_ANGLE, 1);
+            elseif abs(rightCM) < 1
+                obj.brick.MoveMotorAngleRel(obj.MOTOR.LEFT, speed, leftCM * obj.CM_TO_ANGLE, 1);
+            elseif abs(leftCM) < 1
+                obj.brick.MoveMotorAngleRel(obj.MOTOR.RIGHT, speed, rightCM * obj.CM_TO_ANGLE, 1);
+            else
+                if abs(leftCM) > (rightCM)
+                    obj.brick.MoveMotorAngleRel(obj.MOTOR.LEFT, speed * abs(leftCM / rightCM), leftCM * obj.CM_TO_ANGLE, 1);
+                    obj.brick.MoveMotorAngleRel(obj.MOTOR.RIGHT, speed, rightCM * obj.CM_TO_ANGLE, 1);
+                else
+                    obj.brick.MoveMotorAngleRel(obj.MOTOR.LEFT, speed, leftCM * obj.CM_TO_ANGLE, 1);
+                    obj.brick.MoveMotorAngleRel(obj.MOTOR.RIGHT, speed * abs(rightCM / leftCM), rightCM * obj.CM_TO_ANGLE, 1);
+                end
+            end
+            obj.brick.WaitForMotor(obj.MOTOR.LEFT);
+            obj.brick.WaitForMotor(obj.MOTOR.RIGHT);
         end
         function angles = getAngles(obj)
             brick = obj.brick;
