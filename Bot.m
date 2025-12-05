@@ -209,7 +209,7 @@ classdef Bot < handle
                         obj.addPose(odo.pose);
         
                         pose = odo.pose;
-                        % viz.update();
+                        viz.update();
     
                         color = hw.getColor();
                         if abs(color(2) - color(3)) < obj.COLOR_THRESHOLD && color(1) > max(color(2), color(3)) + obj.COLOR_THRESHOLD % red (pause)

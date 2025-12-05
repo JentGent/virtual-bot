@@ -224,7 +224,7 @@ classdef Maze < handle
             offx = 0; offy = 0;
             sx = obj.CELL_SIZE;
             sy = obj.CELL_SIZE;
-            lineWidth = 2;
+            lineWidth = 1;
 
             for r = 1:obj.MAZE_HEIGHT
                 for c = 1:obj.MAZE_WIDTH

@@ -10,7 +10,7 @@ maze = Maze(11, 11);
 odo = Odometry(hw, maze);
 Gsize = maze.CELL_SIZE * (max(maze.MAZE_WIDTH, maze.MAZE_HEIGHT));
 odo.setPose(Gsize / 2, Gsize / 2, 0);
-viz = Visualization(hw, odo, maze);
+viz = Visualization("Estimation", hw, odo, maze);
 bot = Bot(hw, maze, odo, viz);
 
 if simulated

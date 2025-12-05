@@ -40,7 +40,7 @@ classdef HardwareSim < handle
             obj.REAL_MAZE = Maze(mazeWidth, mazeHeight);
             obj.REAL_MAZE.generate();
             obj.realOdo = Odometry(obj, obj.REAL_MAZE);
-            obj.viz = Visualization(obj, obj.realOdo, obj.REAL_MAZE);
+            obj.viz = Visualization("Simulation", obj, obj.realOdo, obj.REAL_MAZE);
 
             while true
                 c = randi(obj.REAL_MAZE.MAZE_WIDTH);
@@ -67,7 +67,7 @@ classdef HardwareSim < handle
             end
             obj.realOdo.setPose(obj.REAL_MAZE.CELL_SIZE * (c - 0.5) + randn() * 5, obj.REAL_MAZE.CELL_SIZE * (obj.REAL_MAZE.MAZE_HEIGHT + 0.5 - r) + randn() * 5, dir * 90 + randn() * 3);
 
-            obj.distArc = plot(obj.viz.ax, NaN, NaN, 'b-', 'LineWidth', 1);
+            obj.distArc = plot(obj.viz.ax, NaN, NaN, 'b-', 'LineWidth', 2);
         end
 
         function beep(obj)

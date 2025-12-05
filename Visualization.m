@@ -11,8 +11,8 @@ classdef Visualization < handle
     end
 
     methods
-        function obj = Visualization(hw, odo, maze)
-            obj.fig = figure("Name", "Visualization", ...
+        function obj = Visualization(name, hw, odo, maze)
+            obj.fig = figure("Name", name, ...
                              "CloseRequestFcn", @obj.onClose);
             obj.ax = axes("Parent", obj.fig);
             hold(obj.ax, "on");
